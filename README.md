@@ -1,8 +1,12 @@
-# @airbrx/node-core
+# @airbrx/airbrx-lib-shared
 
 Shared storage/logging toolkit, extracted from three independently-drifted vendored
 copies (`airbrx-gateway`, `airbrx-api`, `airbrx-log-summary`) as the Cluster A
 spike for [AIR-1409](https://linear.app/airbrx/issue/AIR-1409).
+
+Public repo: nothing in this package is Airbrx-proprietary. It's pure infrastructure
+plumbing (storage backends, logging, env detection) — the rules engine, cache-key
+construction, and adapters stay in `airbrx-gateway`.
 
 **This is a spike extraction, not a full reconciliation.** v1 proves the
 extraction mechanics work end-to-end on the lowest-risk consumer
@@ -19,7 +23,7 @@ it, and no existing capability from gateway/api was silently merged in.
 
 | File | Source | Notes |
 |---|---|---|
-| `DateTimeUtils.js` | log-summary, verbatim | Identical across all 3 repos already. |
+| `DateTimeUtils.js` | log-summary, verbatim | **Not actually identical across all 3** (correcting the original ticket's headline claim): gateway adds a public `static toFilenameSafe(isoString)` method and refactors `nowForFilename()` to call it; api/log-summary lack it. Harmless for the log-summary pilot (nothing here calls it), but gateway's migration must not silently lose this method — port it forward then, not now. |
 | `EnvironmentDetector.js` | log-summary, verbatim | log-summary's copy is the most advanced of the three (ECS/Fargate + Kubernetes + cgroup v2 detection, which gateway/api lack). Gateway's `SKIP_DOTENV` override was **not** ported forward — that's a Phase 2 decision when gateway migrates, not something to bolt onto log-summary's untested path. |
 | `WinstonLogger.js` | log-summary, verbatim | All three copies have diverged in genuinely different directions: gateway adds tenant-aware child loggers + configurable log retention (`AIRBRX_LOG_MAX_SIZE`/`AIRBRX_LOG_MAX_FILES`); api adds `AIR-1333` request-context/scalar-splat formatting; log-summary has smarter `enableDisk` defaulting via `EnvironmentDetector`. None is a superset — deferred to Phase 2. |
 | `StorageFactory.js` | log-summary, **minus one line** | Dropped a stray `console.error('[StorageFactory] Module not found error:', ...)` debug line present only in log-summary's copy — confirmed accidental cruft (gateway/api never had it), not a behavior change worth preserving. |
@@ -34,7 +38,7 @@ it, and no existing capability from gateway/api was silently merged in.
 ## Usage
 
 ```js
-const { StorageFactory } = require('@airbrx/node-core');
+const { StorageFactory } = require('@airbrx/airbrx-lib-shared');
 
 const storage = StorageFactory.create({
   storage: { type: 'filesystem', basePath: './data' }
@@ -44,5 +48,8 @@ const storage = StorageFactory.create({
 ## Distribution (spike)
 
 Consumed via git dependency, pinned to a commit SHA — not a private npm
-registry. See AIR-1409 for the public-vs-private repo visibility decision and
-its CI implications.
+registry. The repo is **public**: nothing in it is Airbrx-proprietary (see
+above), and going public removes the CI credential-wiring problem entirely —
+`npm ci` clones an unauthenticated public URL, identical on every target
+(laptop, Lambda CI, Docker/Fargate build), with no SSH key or token to manage
+anywhere. See AIR-1409 for the full reasoning.

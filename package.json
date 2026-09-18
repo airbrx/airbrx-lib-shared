@@ -1,5 +1,5 @@
 {
-  "name": "@airbrx/node-core",
+  "name": "@airbrx/airbrx-lib-shared",
   "version": "0.1.0",
   "description": "Shared storage/logging toolkit for Airbrx Node services (spike: AIR-1409)",
   "main": "index.js",
